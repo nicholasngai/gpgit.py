@@ -46,8 +46,11 @@ def encrypt_message(message: email.message.Message,
     payload_data = message.get_payload()
     payload = MIMEBase(message.get_content_maintype(),
                        message.get_content_subtype())
-    payload['Content-Transfer-Encoding'] = message['Content-Transfer-Encoding']
-    payload['Content-Disposition'] = message['Content-Disposition']
+    if 'Content-Transfer-Encoding' in message:
+        payload['Content-Transfer-Encoding'] = \
+                message['Content-Transfer-Encoding']
+    if 'Content-Disposition' in message:
+        payload['Content-Disposition'] = message['Content-Disposition']
     payload.set_payload(payload_data)
 
     # Encrypted payload part.
@@ -66,7 +69,7 @@ def encrypt_message(message: email.message.Message,
     ret.attach(encrypted_payload)
     for header, value in message.items():
         if header not in ret:
-            ret.add_header(header, value)
+            ret[header] = value
 
     return ret
 
