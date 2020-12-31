@@ -39,31 +39,31 @@ def encrypt_message(message: email.message.Message,
 
     # PGP version part.
     version_data = 'Version: 1'
-    version_part = MIMEApplication(version_data, 'pgp-encrypted',
-                                   email.encoders.encode_noop)
+    version = MIMEApplication(version_data, 'pgp-encrypted',
+                              email.encoders.encode_noop)
 
     # Plaintext payload part.
     payload_data = message.get_payload()
-    payload_part = MIMEBase(message.get_content_maintype(),
-                            message.get_content_subtype())
-    payload_part['Content-Transfer-Encoding'] \
-            = message['Content-Transfer-Encoding']
-    payload_part.set_payload(message.get_payload())
+    payload = MIMEBase(message.get_content_maintype(),
+                       message.get_content_subtype())
+    payload['Content-Transfer-Encoding'] = message['Content-Transfer-Encoding']
+    payload['Content-Disposition'] = message['Content-Disposition']
+    payload.set_payload(payload_data)
 
     # Encrypted payload part.
-    encrypted_payload_data = encrypt_payload(payload_part.as_string(),
-                                             public_key_path)
-    encrypted_payload_part = MIMEApplication(encrypted_payload_data,
-                                             'octet-stream',
-                                             email.encoders.encode_noop,
-                                             name='encrypted.asc')
-    encrypted_payload_part.add_header('Content-Disposition', 'inline',
-                                      filename='encrypted.asc')
+    encrypted_payload_data = encrypt_payload(
+            protected_headers.as_string(maxheaderlen=80),
+            public_key_path)
+    encrypted_payload = MIMEApplication(encrypted_payload_data, 'octet-stream',
+                                        email.encoders.encode_noop,
+                                        name='encrypted.asc')
+    encrypted_payload.add_header('Content-Disposition', 'inline',
+                                 filename='encrypted.asc')
 
     # Output.
     ret = MIMEMultipart('encrypted', protocol='application/pgp-encrypted')
-    ret.attach(version_part)
-    ret.attach(encrypted_payload_part)
+    ret.attach(version)
+    ret.attach(encrypted_payload)
     for header, value in message.items():
         if header not in ret:
             ret.add_header(header, value)
