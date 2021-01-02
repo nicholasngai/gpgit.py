@@ -31,6 +31,7 @@ def encrypt_payload(data: str, public_key_path: str) -> str:
                           '--no-keyring', '--armor', '--encrypt',
                           '--recipient-file', public_key_path),
                          input=data, encoding='utf-8', capture_output=True)
+    gpg.check_returncode()
     return gpg.stdout
 
 def encrypt_message(message: email.message.Message, public_key_path: str,
