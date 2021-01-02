@@ -31,8 +31,8 @@ def encrypt_payload(data: str, public_key_path: str) -> str:
                          input=data, encoding='utf-8', capture_output=True)
     return gpg.stdout
 
-def encrypt_message(message: email.message.Message,
-                    public_key_path: str) -> email.message.Message:
+def encrypt_message(message: email.message.Message, public_key_path: str,
+                    protect_headers: bool) -> email.message.Message:
     # Skip messsages that are already encrypted.
     if is_encrypted(message):
         return message
@@ -53,9 +53,21 @@ def encrypt_message(message: email.message.Message,
         payload['Content-Disposition'] = message['Content-Disposition']
     payload.set_payload(payload_data)
 
+    if protect_headers:
+        # Protected headers MIME wrapper.
+        if payload.is_multipart():
+            protected_headers = payload
+        else:
+            protected_headers = MIMEMultipart('mixed')
+            protected_headers.attach(payload)
+        protected_headers.set_param('protected-headers', 'v1')
+        if 'Subject' in message:
+            protected_headers['Subject'] = message['Subject']
+        payload = protected_headers
+
     # Encrypted payload part.
     encrypted_payload_data = encrypt_payload(
-            protected_headers.as_string(maxheaderlen=80),
+            payload.as_string(maxheaderlen=80),
             public_key_path)
     encrypted_payload = MIMEApplication(encrypted_payload_data, 'octet-stream',
                                         email.encoders.encode_noop,
@@ -68,13 +80,16 @@ def encrypt_message(message: email.message.Message,
     ret.attach(version)
     ret.attach(encrypted_payload)
     for header, value in message.items():
-        if header not in ret:
+        if protect_headers and header.lower() == 'subject':
+            ret[header] = '...'
+        elif header not in ret:
             ret[header] = value
 
     return ret
 
 def main(args: argparse.Namespace) -> int:
     public_key_path: str = args.public_key
+    protect_headers: bool = args.protect_headers
 
     # Check if gpg is in the PATH.
     if shutil.which('gpg') is None:
@@ -88,7 +103,7 @@ def main(args: argparse.Namespace) -> int:
     message = email.message_from_string(raw)
 
     # Encrypt message.
-    message = encrypt_message(message, public_key_path)
+    message = encrypt_message(message, public_key_path, protect_headers)
 
     # Output to stdout.
     sys.stdout.write(message.as_string(maxheaderlen=80))
@@ -98,4 +113,6 @@ def main(args: argparse.Namespace) -> int:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('public_key', help='Public key to encrypt emails with')
+    parser.add_argument('-p', '--protect-headers', action='store_true',
+                        help='Enable protected headers')
     exit(main(parser.parse_args()))
