@@ -50,10 +50,12 @@ def encrypt_message(message: email.message.Message, public_key_path: str,
     payload = MIMEBase(message.get_content_maintype(),
                        message.get_content_subtype(),
                        **dict((message.get_params() or ('text/plain',))[1:]))
-    payload['Content-Transfer-Encoding'] = \
-            message.get('Content-Transfer-Encoding', '7bit')
-    if 'Content-Disposition' in message:
-        payload['Content-Disposition'] = message['Content-Disposition']
+    for header, value in message.items():
+        lower = header.lower()
+        if lower.startswith('content-') and lower != 'content-type':
+            payload[header] = value
+    if 'Content-Transfer-Encoding' not in payload:
+        payload['Content-Transfer-Encoding'] = '7bit'
     payload.set_payload(payload_data)
 
     if protect_headers:
@@ -85,7 +87,7 @@ def encrypt_message(message: email.message.Message, public_key_path: str,
     for header, value in message.items():
         if protect_headers and header.lower() == 'subject':
             ret[header] = '...'
-        elif header not in ret:
+        elif header not in ret and not header.lower().startswith('content-'):
             ret[header] = value
 
     return ret
