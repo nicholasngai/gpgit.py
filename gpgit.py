@@ -48,7 +48,8 @@ def encrypt_message(message: email.message.Message, public_key_path: str,
     # Plaintext payload part.
     payload_data = message.get_payload()
     payload = MIMEBase(message.get_content_maintype(),
-                       message.get_content_subtype())
+                       message.get_content_subtype(),
+                       **dict(message.get_params()[1:]))
     if 'Content-Transfer-Encoding' in message:
         payload['Content-Transfer-Encoding'] = \
                 message['Content-Transfer-Encoding']
