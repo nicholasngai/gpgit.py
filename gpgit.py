@@ -28,7 +28,7 @@ def is_encrypted(message: email.message.Message) -> bool:
 
 def encrypt_payload(data: str, public_key_path: str) -> str:
     gpg = subprocess.run(('gpg', '--batch', '--quiet', '--no-options',
-                          '--armor', '--encrypt',
+                          '--no-keyring', '--armor', '--encrypt',
                           '--recipient-file', public_key_path),
                          input=data, encoding='utf-8', capture_output=True)
     return gpg.stdout
