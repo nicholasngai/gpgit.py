@@ -1,6 +1,6 @@
 # gpgit.py
 
-`gpgit.sh` is a Python wrapper for the [GnuPG](https://gnupg.org/) software, to
+`gpgit.py` is a Python wrapper for the [GnuPG](https://gnupg.org/) software, to
 convert plaintext emails of any `Content-Type` into PGP-encrypted emails using
 the PGP/MIME format, defined in [RFC 3156](https://tools.ietf.org/html/rfc3156).
 It reads in a raw email file including headers from stdin and outputs the email
