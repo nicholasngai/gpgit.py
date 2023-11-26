@@ -16,6 +16,8 @@ import subprocess
 import sys
 from typing import Optional
 
+import gpg
+
 ENCRYPTED_MIME_TYPES = {
     'multipart/encrypted',
     'application/pkcs7-mime',
@@ -27,12 +29,16 @@ def is_encrypted(message: email.message.Message) -> bool:
     return False
 
 def encrypt_payload(data: str, public_key_path: str) -> str:
-    gpg = subprocess.run(('gpg', '--batch', '--quiet', '--no-options',
-                          '--no-keyring', '--armor', '--encrypt',
-                          '--recipient-file', public_key_path),
-                         input=data, encoding='utf-8', capture_output=True)
-    gpg.check_returncode()
-    return gpg.stdout
+    with gpg.Context(armor=True) as c:
+        out_data = gpg.Data()
+        c.op_encrypt_ext([], '--file\n' + public_key_path,
+                         gpg.constants.ENCRYPT_ALWAYS_TRUST,
+                         data.encode('utf-8'), out_data)
+        result = c.op_encrypt_result()
+        if result.invalid_recipients:
+            raise gpg.errors.InvalidRecipients(result.invalid_recipients)
+        out_data.seek(0)
+        return out_data.read().decode('utf-8')
 
 def encrypt_message(message: email.message.Message, public_key_path: str,
                     protect_headers: bool) -> email.message.Message:
