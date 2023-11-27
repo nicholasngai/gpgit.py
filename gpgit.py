@@ -11,6 +11,7 @@ from email.mime.multipart import MIMEMultipart
 import errno
 import io
 import random
+import secrets
 import shutil
 import subprocess
 import sys
@@ -24,9 +25,7 @@ ENCRYPTED_MIME_TYPES = {
 }
 
 def is_encrypted(message: email.message.Message) -> bool:
-    if message.get_content_type() in ENCRYPTED_MIME_TYPES:
-        return True
-    return False
+    return message.get_content_type() in ENCRYPTED_MIME_TYPES
 
 def encrypt_payload(data: str, public_key_path: str) -> str:
     with gpg.Context(armor=True) as c:
@@ -39,6 +38,9 @@ def encrypt_payload(data: str, public_key_path: str) -> str:
             raise gpg.errors.InvalidRecipients(result.invalid_recipients)
         out_data.seek(0)
         return out_data.read().decode('utf-8')
+
+def generate_boundary() -> str:
+    return f'gpgit-v1-{secrets.token_hex(16)}'
 
 def encrypt_message(message: email.message.Message, public_key_path: str,
                     protect_headers: bool) -> email.message.Message:
@@ -87,7 +89,7 @@ def encrypt_message(message: email.message.Message, public_key_path: str,
                                  filename='encrypted.asc')
 
     # Output.
-    ret = MIMEMultipart('encrypted', protocol='application/pgp-encrypted')
+    ret = MIMEMultipart('encrypted', protocol='application/pgp-encrypted', boundary=generate_boundary())
     ret.attach(version)
     ret.attach(encrypted_payload)
     for header, value in message.items():
