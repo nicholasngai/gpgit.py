@@ -27,17 +27,16 @@ ENCRYPTED_MIME_TYPES = {
 def is_encrypted(message: email.message.Message) -> bool:
     return message.get_content_type() in ENCRYPTED_MIME_TYPES
 
-def encrypt_payload(data: str, public_key_path: str) -> str:
+def encrypt_payload(data: bytes, public_key_path: str) -> bytes:
     with gpg.Context(armor=True) as c:
         out_data = gpg.Data()
         c.op_encrypt_ext([], '--file\n' + public_key_path,
-                         gpg.constants.ENCRYPT_ALWAYS_TRUST,
-                         data.encode('utf-8'), out_data)
+                         gpg.constants.ENCRYPT_ALWAYS_TRUST, data, out_data)
         result = c.op_encrypt_result()
         if result.invalid_recipients:
             raise gpg.errors.InvalidRecipients(result.invalid_recipients)
         out_data.seek(0)
-        return out_data.read().decode('utf-8')
+        return out_data.read()
 
 def generate_boundary() -> str:
     return f'gpgit-v1-{secrets.token_hex(16)}'
@@ -79,9 +78,8 @@ def encrypt_message(message: email.message.Message, public_key_path: str,
         payload = protected_headers
 
     # Encrypted payload part.
-    encrypted_payload_data = encrypt_payload(
-            payload.as_string(maxheaderlen=80),
-            public_key_path)
+    encrypted_payload_data = encrypt_payload(payload.as_bytes(),
+                                             public_key_path)
     encrypted_payload = MIMEApplication(encrypted_payload_data, 'octet-stream',
                                         email.encoders.encode_noop,
                                         name='encrypted.asc')
